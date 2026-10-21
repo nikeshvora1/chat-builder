@@ -145,7 +145,6 @@ kbd { background: var(--field); border: 1px solid var(--line); border-radius: 4p
 .stage[data-bg=white] { background: #fff; }
 .stage[data-bg=black] { background: #000; }
 .stage[data-bg=green] { background: #00b140; }
-.phone-fit { transform-origin: center center; }
 
 .stage-hud {
   position: absolute; top: 16px; right: 16px; display: none; gap: 8px;
@@ -181,3 +180,8 @@ kbd { background: var(--field); border: 1px solid var(--line); border-radius: 4p
   .actions { bottom: 0; }
   .app.presenting { grid-template-rows: 100vh; }
 }
+
+/* Half framing: the full phone zoomed so only its top shows (HALF_VISIBLE in app.js); the rest is cut off
+   by the stage. fitPhone() pads the thread up so messages land just above the cut. */
+.phone-fit { transform-origin: 0 0; }
+.stage[data-framing=half] { place-items: start center; }

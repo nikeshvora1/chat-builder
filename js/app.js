@@ -23,7 +23,7 @@
       ['me', 'say less'],
     ].map(([from, text]) => ({ id: uid(), kind: 'msg', from, text })),
     settings: {
-      theme: 'dark', wallpaper: 'plain', startTime: '22:47', speed: 1, stageBg: 'studio',
+      theme: 'dark', wallpaper: 'plain', startTime: '22:47', speed: 1, stageBg: 'studio', framing: 'full',
       typing: true, typeOut: true, receipts: true, sounds: true,
     },
   };
@@ -57,6 +57,7 @@
     if (!Array.isArray(out.people) || !out.people.length) out.people = d.people;
     if (!Array.isArray(out.items)) out.items = [];
     out.items.forEach(i => { i.id ||= uid(); i.kind ||= 'msg'; i.text ??= ''; });
+    if (!['full', 'half'].includes(out.settings.framing)) out.settings.framing = 'full';
     return out;
   }
   function save() {
@@ -175,10 +176,12 @@
     if (view === 'script' && document.activeElement !== $('#script')) $('#script').value = toScript();
 
     const s = state.settings;
-    for (const k of ['theme', 'wallpaper', 'startTime', 'stageBg', 'speed']) $('#' + k).value = s[k];
+    for (const k of ['theme', 'wallpaper', 'startTime', 'stageBg', 'framing', 'speed']) $('#' + k).value = s[k];
     for (const k of ['typing', 'typeOut', 'receipts', 'sounds']) $('#' + k).checked = !!s[k];
     $('#speedOut').textContent = `${s.speed}×`;
     $('#stage').dataset.bg = s.stageBg;
+    $('#stage').dataset.framing = s.framing;
+    fitPhone();
   }
 
   function setSeg(sel, value) {
@@ -379,7 +382,7 @@
       changed({ rebuild: true });
     };
 
-    for (const k of ['theme', 'wallpaper', 'startTime', 'stageBg']) {
+    for (const k of ['theme', 'wallpaper', 'startTime', 'stageBg', 'framing']) {
       $('#' + k).onchange = e => { state.settings[k] = e.target.value; changed({ rebuild: true }); };
     }
     $('#speed').oninput = e => { state.settings.speed = +e.target.value; $('#speedOut').textContent = `${state.settings.speed}×`; save(); };
@@ -406,13 +409,30 @@
 
   // ── stage: fit, play, present ─────────────────────────
   const app = $('#app'), stage = $('#stage'), fit = $('#phoneFit');
+  const HALF_VISIBLE = 520; // px of the phone (from its top) shown in half framing
+  const VIEWPORT_BOTTOM = 768; // phone y where the chat area ends (above composer + home indicator)
   function fitPhone() {
     const r = stage.getBoundingClientRect();
-    const pad = app.classList.contains('presenting') ? 32 : 56;
-    const max = app.classList.contains('presenting') ? 3 : 1.15;
-    const scale = Math.min((r.width - pad) / 414, (r.height - pad) / 868, max);
-    fit.style.transform = `scale(${Math.max(scale, 0.2)})`;
-    fit.style.margin = `${(868 * scale - 868) / 2}px ${(414 * scale - 414) / 2}px`;
+    const presenting = app.classList.contains('presenting');
+    const pad = presenting ? 32 : 56;
+    let scale, top;
+    if (state.settings.framing === 'half') {
+      // Half framing: zoom in so only the top HALF_VISIBLE px of the phone fill the stage; the rest runs off the bottom
+      top = pad / 2 + 8;
+      scale = Math.min((r.width - pad) / 414, (r.height - top) / HALF_VISIBLE, presenting ? 3 : 1.5);
+    } else {
+      scale = Math.min((r.width - pad) / 414, (r.height - pad) / 868, presenting ? 3 : 1.15);
+      top = 0;
+    }
+    scale = Math.max(scale, 0.2);
+    // In half framing, lift the thread so its last message sits just above wherever the stage cuts the phone off
+    // (when the stage is tall and width-limits the zoom, more than HALF_VISIBLE px of phone are on screen).
+    const visible = Math.min(868, (r.height - top) / scale);
+    $('#thread').style.paddingBottom =
+      state.settings.framing === 'half' ? `${Math.max(10, VIEWPORT_BOTTOM - visible + 14)}px` : '';
+    // scale from the top-left corner and shrink/grow the layout box to match with margins
+    fit.style.transform = `scale(${scale})`;
+    fit.style.margin = `${top}px ${414 * scale - 414}px ${868 * scale - 868}px 0`;
   }
   new ResizeObserver(fitPhone).observe(stage);
 
