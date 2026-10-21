@@ -303,7 +303,6 @@ window.ChatPlayer = (() => {
         await this.wait(250 / sp);
         for (let i = step; i < chars.length + step; i += step) {
           this.setComposer(chars.slice(0, i).join(''), true);
-          ChatSounds.key();
           await this.wait(per);
         }
         this.composer.classList.remove('typing-active');

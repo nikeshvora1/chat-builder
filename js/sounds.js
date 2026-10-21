@@ -39,10 +39,5 @@ window.ChatSounds = (() => {
       tone({ freq: 880, dur: 0.14, gain: 0.12 });
       tone({ freq: 1320, dur: 0.22, gain: 0.1, delay: 0.09 });
     },
-    // soft key click while "typing" in the composer
-    key() {
-      if (!enabled) return;
-      tone({ freq: 1800 + Math.random() * 600, dur: 0.025, gain: 0.025, type: 'triangle' });
-    },
   };
 })();
