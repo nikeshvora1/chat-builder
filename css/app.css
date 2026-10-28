@@ -161,6 +161,7 @@ kbd { background: var(--field); border: 1px solid var(--line); border-radius: 4p
   font-size: 120px; font-weight: 700; color: #fff; text-shadow: 0 4px 30px rgba(0,0,0,.4);
   pointer-events: none;
 }
+.countdown[hidden] { display: none; }
 .toast {
   position: absolute; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
   background: rgba(20,20,20,.88); color: #fff; padding: 9px 16px; border-radius: 99px;
