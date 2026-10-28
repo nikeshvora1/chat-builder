@@ -29,6 +29,8 @@ Leo: legend
 
 Use your name (or `Me` / `You`) for your own messages. Any new name in a group becomes a member. A line without `Name:` continues the previous message.
 
+You can also paste messages copied from WhatsApp (`[11:31 PM, 27/10/2026] Name: text`) or a chat export (`27/10/2026, 11:31 pm - Name: text`). The timestamps are dropped and the first one becomes the start time. If more than one other person is talking, the chat switches to a group.
+
 ## Run locally
 
 ```bash

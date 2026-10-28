@@ -113,17 +113,48 @@
       .map(i => (i.kind === 'pause' ? `[pause ${i.seconds}]` : `${nameOf(i.from)}: ${i.text}`))
       .join('\n');
   }
+  // WhatsApp copy/export headers, e.g. "[11:31 PM, 27/10/2026] Name: text" (copied messages, iOS export)
+  // or "27/10/2026, 11:31 pm - Name: text" (Android export)
+  const WA_TIME = /^\s*(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*(?:([ap])\.?\s?m\.?)?\s*$/i;
+  function parseWhatsApp(line) {
+    line = line.replace(/[‎‏]/g, '');
+    let m = /^\[([^\]]+)\]\s*([^:]+?):\s?(.*)$/.exec(line);
+    let time = m && m[1].split(',').map(p => WA_TIME.exec(p)).find(Boolean);
+    if (!time) {
+      m = /^\d{1,4}[/.-]\d{1,2}[/.-]\d{1,4},?\s+([^-–]+?)\s*[-–]\s*([^:]+?):\s?(.*)$/.exec(line);
+      time = m && WA_TIME.exec(m[1]);
+    }
+    if (!time) return null;
+    let h = +time[1] % 24;
+    if (time[3]) h = (h % 12) + (/p/i.test(time[3]) ? 12 : 0);
+    return { name: m[2].trim(), text: m[3], time: `${String(h).padStart(2, '0')}:${time[2]}` };
+  }
+
   function fromScript(text) {
     const meNames = new Set(['me', 'you', (state.me || '').toLowerCase()]);
+    const lines = text.split('\n');
+    const wa = lines.some(l => parseWhatsApp(l));
+    if (wa) {
+      // a pasted group chat: switch to group when more than one other person is talking
+      const others = new Set(lines.map(parseWhatsApp).filter(h => h && !meNames.has(h.name.toLowerCase())).map(h => h.name));
+      if (others.size > 1) state.type = 'group';
+    }
     const dm = state.type === 'dm';
     const byName = new Map(state.people.map(p => [p.name.toLowerCase(), p]));
     const used = new Map();
     const items = [];
-    let dmContactNamed = false;
-    for (const line of text.split('\n')) {
+    let dmContactNamed = false, firstTime = null;
+    for (const line of lines) {
       const pause = /^\s*\[pause\s*([\d.]+)\s*s?\]\s*$/i.exec(line);
       if (pause) { items.push({ id: uid(), kind: 'pause', seconds: +pause[1] }); continue; }
-      const m = /^([^:\n]{1,24}):\s?(.*)$/.exec(line);
+      let m = null;
+      if (wa) {
+        // only real headers start a message, so a "label: text" line inside a message stays put
+        const h = parseWhatsApp(line);
+        if (h) { m = [line, h.name, h.text]; firstTime ??= h.time; }
+      } else {
+        m = /^([^:\n]{1,24}):\s?(.*)$/.exec(line);
+      }
       if (!m) {
         const prev = items[items.length - 1];
         if (prev && prev.kind === 'msg') prev.text += '\n' + line;
@@ -152,6 +183,7 @@
     }
     state.items = items.map(i => ({ ...i, text: i.text?.replace(/\n+$/, '') ?? i.text }));
     if (!dm && used.size) state.people = [...used.values()];
+    if (firstTime) state.settings.startTime = firstTime;
   }
   function nextColor(people = state.people) {
     const taken = new Set(people.map(p => p.color));
@@ -366,8 +398,7 @@
       clearTimeout(scriptTimer);
       scriptTimer = setTimeout(() => {
         fromScript($('#script').value);
-        renderPeople();
-        renderMsgs();
+        renderEditor(); // a WhatsApp paste can switch the chat type and start time
         changed();
       }, 250);
     };
